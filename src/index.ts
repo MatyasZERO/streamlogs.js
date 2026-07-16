@@ -7,14 +7,26 @@ export enum logLevel {
     fatal
 }
 
-import basic from "./basicLogger"
-import JSON from "./JSONLogger"
+import basicLogger from "./basicLogger"
+import JSONLogger, { JSONMessage } from "./JSONLogger"
 
-export const basicLogger = basic
-export const JSONLogger = JSON
+export { basicLogger, JSONLogger, JSONMessage }
 
-export const defLog = new basicLogger(logLevel.info, "System", true)
-defLog.pipe(process.stdout)
+function getLogLevelFromEnv(): logLevel {
+    const envLevel = process.env.LOG_LEVEL?.toLowerCase();
+    switch (envLevel) {
+        case "trace": return logLevel.trace;
+        case "debug": return logLevel.debug;
+        case "info": return logLevel.info;
+        case "warn": return logLevel.warn;
+        case "error": return logLevel.error;
+        case "fatal": return logLevel.fatal;
+        default: return logLevel.info;
+    }
+}
+
+export const defLog = new basicLogger(getLogLevelFromEnv(), "System", true);
+defLog.pipe(process.stdout);
 
 
 // error handlings
