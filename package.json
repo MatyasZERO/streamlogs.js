@@ -8,6 +8,9 @@
     "dev": "tsc -p tsconfig.build.json -w",
     "build": "tsc -p tsconfig.build.json"
   },
+  "files": [
+    "dist"
+  ],
   "types": "./dist/index.d.ts",
   "repository": {
     "type": "git",
