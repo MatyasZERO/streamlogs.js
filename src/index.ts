@@ -29,18 +29,7 @@ export const defLog = new basicLogger(getLogLevelFromEnv(), "System", true);
 defLog.pipe(process.stdout);
 
 
-// error handlings
-process.on("uncaughtException", (err, origin) => {
-    defLog.error(err.stack ? err.stack : err.name, origin)
-})
-
-process.on("unhandledRejection", (reason, promise) => {
-    defLog.error(String(reason), String(promise))
-})
-
-process.on('warning', (warning) => {
-    defLog.warn(warning.message, warning.name);
-});
+// Opt-in global error handling is available via defLog.catchGlobalErrors()
 
 
 

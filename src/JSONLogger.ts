@@ -1,6 +1,19 @@
 import { Readable } from "stream"
 import { logLevel } from "./index"
 
+function getCircularReplacer() {
+    const seen = new WeakSet();
+    return (key: string, value: any) => {
+        if (typeof value === "object" && value !== null) {
+            if (seen.has(value)) {
+                return "[Circular]";
+            }
+            seen.add(value);
+        }
+        return value;
+    };
+}
+
 export interface JSONMessage {
     message: string;
     level: string;
@@ -15,6 +28,7 @@ interface JSONLogger extends Readable {
     on(event: string | symbol, listener: (...args: any[]) => void): this;
     emit(event: 'logTrace' | 'logDebug' | 'logInfo' | 'logWarn' | 'logError' | 'logFatal' | 'log', object: JSONMessage): boolean;
     emit(event: string | symbol, ...args: any[]): boolean;
+    catchGlobalErrors(): void;
 }
 
 class JSONLogger extends Readable {
@@ -53,7 +67,7 @@ class JSONLogger extends Readable {
         if (message instanceof Error && message.stack) object.error = message.stack;
 
         if(this.logLevel <= level) {
-            this.push(JSON.stringify(object) + "\n");
+            this.push(JSON.stringify(object, getCircularReplacer()) + "\n");
         }
         this.emit("log", object)
         switch (level) {
@@ -72,6 +86,20 @@ class JSONLogger extends Readable {
     warn(message: string | Error, sender = this.defaultSender, meta?: any) { this.addLog(message, logLevel.warn, sender, meta) }
     error(message: string | Error, sender = this.defaultSender, meta?: any) { this.addLog(message, logLevel.error, sender, meta) }
     fatal(message: string | Error, sender = this.defaultSender, meta?: any) { this.addLog(message, logLevel.fatal, sender, meta) }
+
+    catchGlobalErrors() {
+        process.on("uncaughtException", (err, origin) => {
+            this.error(err.stack ? err.stack : err.name, origin)
+        })
+
+        process.on("unhandledRejection", (reason, promise) => {
+            this.error(String(reason), String(promise))
+        })
+
+        process.on('warning', (warning) => {
+            this.warn(warning.message, warning.name);
+        });
+    }
 }
 
 export default JSONLogger;

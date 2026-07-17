@@ -1,5 +1,6 @@
 import colors from "./colors"
 import { Readable } from "stream"
+import { inspect } from "util"
 import { logLevel } from "./index"
 
 type dateFunction = () => string;
@@ -9,6 +10,7 @@ interface basicLogger extends Readable {
     on(event: string | symbol, listener: (...args: any[]) => void): this;
     emit(event: 'logTrace' | 'logDebug' | 'logInfo' | 'logWarn' | 'logError' | 'logFatal', message: string, sender: string): boolean;
     emit(event: string | symbol, ...args: any[]): boolean;
+    catchGlobalErrors(): void;
 }
 
 class basicLogger extends Readable {
@@ -61,7 +63,7 @@ class basicLogger extends Readable {
             if (stackLines) extraData += "\n" + stackLines;
         }
         if (meta !== undefined) {
-            extraData += (extraData ? "\n" : " ") + JSON.stringify(meta);
+            extraData += (extraData ? "\n" : " ") + (typeof meta === 'string' ? meta : inspect(meta, { depth: null, colors: false }));
         }
 
         if (extraData) {
@@ -132,7 +134,20 @@ class basicLogger extends Readable {
     fatal(message: string | Error, sender = this.defaultSender, meta?: any) {
         this.addLog(message, logLevel.fatal, sender, meta)
     }
+    
+    catchGlobalErrors() {
+        process.on("uncaughtException", (err, origin) => {
+            this.error(err.stack ? err.stack : err.name, origin)
+        })
 
+        process.on("unhandledRejection", (reason, promise) => {
+            this.error(String(reason), String(promise))
+        })
+
+        process.on('warning', (warning) => {
+            this.warn(warning.message, warning.name);
+        });
+    }
 }
 
 export default basicLogger;
